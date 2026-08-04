@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  Throwaway smoke-test page. Its only job is to prove that GitHub Pages serves
+  this repo over HTTPS and that both phones can reach it. It will be replaced
+  wholesale by the real app.
+
+  It prints the load time so that a stale cached copy is obvious at a glance:
+  reload, and if the time does not change, you are looking at a cache.
+-->
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>אוכל וקקי</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        display: grid;
+        place-content: center;
+        min-height: 100vh;
+        margin: 0;
+        text-align: center;
+      }
+      time { font-variant-numeric: tabular-nums; color: #666; }
+    </style>
+  </head>
+  <body>
+    <h1>שלום</h1>
+    <p>הדף נטען ב־<time id="t"></time></p>
+
+    <!-- Stamp the load time, so a cached page is distinguishable from a fresh one -->
+    <script>
+      document.getElementById('t').textContent =
+        new Date().toLocaleTimeString('he-IL');
+    </script>
+  </body>
+</html>
