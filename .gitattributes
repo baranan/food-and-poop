@@ -1,0 +1,5 @@
+# Normalise line endings. Everything is stored in the repository with LF, and
+# checked out with whatever your platform prefers. This is what silences the
+# "LF will be replaced by CRLF" warnings, and it stops a file looking wholly
+# rewritten just because it was edited on a different machine.
+* text=auto eol=lf

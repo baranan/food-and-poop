@@ -1,0 +1,218 @@
+<!doctype html>
+<!--
+  Test harness for the API layer, before any real UI exists.
+
+  Runs the same round trip against whichever implementation is active, so the
+  mock and the live Apps Script backend can be compared directly. Open with
+  ?mock=1 for the mock, ?mock=0 for the real server.
+
+  Must be served over http:// -- ES modules do not load from file://.
+  VS Code's Live Server, or the GitHub Pages URL, both work.
+-->
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>בדיקת API</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 50rem;
+        margin: 0 auto;
+        padding: 1rem;
+        line-height: 1.5;
+      }
+      #mode {
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+      }
+      #mode.mock { background: #fde68a; color: #713f12; }
+      #mode.live { background: #bbf7d0; color: #14532d; }
+      button {
+        font: inherit;
+        padding: 0.5rem 0.9rem;
+        margin: 0.15rem 0;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.375rem;
+        background: #f8fafc;
+        cursor: pointer;
+      }
+      #log {
+        direction: ltr;
+        text-align: left;
+        white-space: pre-wrap;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 0.8rem;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 0.75rem;
+        border-radius: 0.375rem;
+        min-height: 20rem;
+        overflow-x: auto;
+      }
+      .pass { color: #4ade80; }
+      .fail { color: #f87171; }
+      .info { color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <h1>בדיקת שכבת ה־API</h1>
+
+    <p id="mode"></p>
+
+    <p>
+      <a href="?mock=1">מצב מוק</a> |
+      <a href="?mock=0">שרת אמיתי</a>
+    </p>
+
+    <p>
+      <button id="run">הרץ בדיקה מלאה</button>
+      <button id="listOnly">רשימה בלבד</button>
+      <button id="reseed">זרע מחדש (מוק)</button>
+      <button id="failures">הפעל 50% כשלים (מוק)</button>
+      <button id="noFailures">בטל כשלים</button>
+    </p>
+
+    <div id="log"></div>
+
+    <script type="module">
+      import * as api from './js/api.js';
+      import { setMockFailureRate, getMockFailureRate } from './js/config.js';
+
+      // ---- Tiny logging helpers -------------------------------------------
+      const logElement = document.getElementById('log');
+
+      function write(text, className = '') {
+        const line = document.createElement('div');
+        if (className) line.className = className;
+        line.textContent = text;
+        logElement.appendChild(line);
+        logElement.scrollTop = logElement.scrollHeight;
+      }
+
+      function check(label, condition, detail = '') {
+        write((condition ? 'PASS  ' : 'FAIL  ') + label + (detail ? '  -- ' + detail : ''),
+              condition ? 'pass' : 'fail');
+        return condition;
+      }
+
+      // ---- Show which backend is in use, loudly ---------------------------
+      const modeElement = document.getElementById('mode');
+      modeElement.textContent = api.usingMock
+        ? 'מצב מוק -- הנתונים מקומיים בלבד ולא נשמרים בגיליון'
+        : 'שרת אמיתי -- כתיבה לגיליון';
+      modeElement.className = api.usingMock ? 'mock' : 'live';
+
+      // ---- The round trip --------------------------------------------------
+      async function runFullTest() {
+        logElement.textContent = '';
+        write('Backend: ' + (api.usingMock ? 'MOCK' : 'LIVE'), 'info');
+        write('Mock failure rate: ' + getMockFailureRate(), 'info');
+        write('', '');
+
+        const started = performance.now();
+
+        try {
+          // 1. list, and confirm the schema is discoverable from the headers.
+          const before = await api.list();
+          check('list returns ok', before.ok, before.error || '');
+          check('headers present', Array.isArray(before.headers),
+                'count: ' + (before.headers && before.headers.length));
+
+          const itemSlots = before.headers.filter(h => /^item\d+$/.test(h)).length;
+          const amountSlots = before.headers.filter(h => /^amount\d+$/.test(h)).length;
+          check('item slots discovered from headers', itemSlots > 0, 'item slots: ' + itemSlots);
+          check('item and amount slots match', itemSlots === amountSlots,
+                itemSlots + ' vs ' + amountSlots);
+          check('notes column present', before.headers.includes('notes'));
+          write('rows before: ' + before.rows.length, 'info');
+
+          // 2. add a throwaway two-item meal.
+          const id = crypto.randomUUID();
+          const eventTime = new Date().toISOString();
+          const added = await api.add({
+            id, time: eventTime, type: 'אוכל',
+            notes: 'בדיקה אוטומטית -- אמור להימחק',
+            item1: 'בננה', amount1: 100,
+            item2: 'לחם', amount2: 50,
+            entered_by: 'test'
+          });
+          check('add returns ok', added.ok, added.error || '');
+          check('server set created_at', Boolean(added.record && added.record.created_at));
+          check('client time preserved', added.record && added.record.time === eventTime,
+                String(added.record && added.record.time));
+
+          // 3. it should now be listed, with Hebrew and the timestamp intact.
+          const afterAdd = await api.list();
+          const found = afterAdd.rows.find(r => r.id === id);
+          check('new record appears in list', Boolean(found));
+          check('hebrew survived the round trip', found && found.item1 === 'בננה',
+                String(found && found.item1));
+          check('time is still a string', typeof (found && found.time) === 'string');
+          check('time unchanged by the sheet', found && found.time === eventTime);
+
+          // 4. partial update must not clobber untouched fields.
+          const updated = await api.update({ id, amount1: 200 });
+          check('update returns ok', updated.ok, updated.error || '');
+          check('updated field changed', updated.record && Number(updated.record.amount1) === 200);
+          check('untouched field survived', updated.record && updated.record.item1 === 'בננה');
+          check('created_at preserved', updated.record &&
+                updated.record.created_at === added.record.created_at);
+          check('updated_at moved', updated.record &&
+                updated.record.updated_at !== added.record.updated_at);
+
+          // 5. clean up after ourselves.
+          const removed = await api.remove(id);
+          check('delete returns ok', removed.ok, removed.error || '');
+
+          const afterDelete = await api.list();
+          check('record is gone', !afterDelete.rows.some(r => r.id === id));
+          check('row count back to start', afterDelete.rows.length === before.rows.length,
+                afterDelete.rows.length + ' vs ' + before.rows.length);
+
+          write('', '');
+          write('Finished in ' + Math.round(performance.now() - started) + 'ms', 'info');
+        } catch (err) {
+          write('THREW  ' + err.name + ': ' + err.message, 'fail');
+          write('(a NetworkError here is expected if failure injection is on)', 'info');
+        }
+      }
+
+      // ---- Buttons ---------------------------------------------------------
+      document.getElementById('run').addEventListener('click', runFullTest);
+
+      document.getElementById('listOnly').addEventListener('click', async () => {
+        logElement.textContent = '';
+        try {
+          const result = await api.list();
+          write(JSON.stringify(result.headers, null, 2), 'info');
+          write('rows: ' + result.rows.length, 'info');
+          write(JSON.stringify(result.rows.slice(-3), null, 2));
+        } catch (err) {
+          write('THREW  ' + err.name + ': ' + err.message, 'fail');
+        }
+      });
+
+      document.getElementById('reseed').addEventListener('click', () => {
+        logElement.textContent = '';
+        try {
+          const rows = api.resetMockData();
+          write('Reseeded mock with ' + rows.length + ' rows', 'info');
+        } catch (err) {
+          write(err.message, 'fail');
+        }
+      });
+
+      document.getElementById('failures').addEventListener('click', () => {
+        setMockFailureRate(0.5);
+        write('Mock failure rate set to 0.5 -- run the test again', 'info');
+      });
+
+      document.getElementById('noFailures').addEventListener('click', () => {
+        setMockFailureRate(0);
+        write('Mock failure rate set to 0', 'info');
+      });
+    </script>
+  </body>
+</html>

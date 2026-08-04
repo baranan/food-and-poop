@@ -1,0 +1,12 @@
+# Windows and Google Drive leave these lying around in every folder.
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# clasp's local config, if clasp is ever installed. It holds machine-specific
+# paths, and the script ID is already recorded in ids.txt.
+server/.clasp.json
+
+# Editor scratch.
+.vscode/
+*.swp
