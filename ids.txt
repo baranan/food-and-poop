@@ -1,0 +1,14 @@
+Sheet ID
+1jqMnYxqYoIjoqpZyhi7HDvjRUxK2DgVZXT7oRcVmb3A
+
+Script ID
+1DWas3aB9VoVMVX2_ovaDS8Q4aDqwYYFOc36tZVQhvYXBoPz_hhK-jGof
+
+Shared token:
+f2272bc1-9faf-4a94-87b5-db48f96e212d
+
+web app URL
+https://script.google.com/macros/s/AKfycbw7tbTJIN_hnflRbh9uyIx0rfjeH9nQfkubiM3t3-uDzA5cLpwy4K3_Xc8ShVBlb7pblQ/exec
+
+Deployment ID
+AKfycbw7tbTJIN_hnflRbh9uyIx0rfjeH9nQfkubiM3t3-uDzA5cLpwy4K3_Xc8ShVBlb7pblQ
