@@ -208,11 +208,13 @@ export function createHistoryScreen(router) {
         dayHeading.textContent = formatDayHeading(day.time);
         list.appendChild(dayHeading);
 
-        // Within a day, earliest first, so a meal reads above the poop that
-        // followed it rather than below.
+        // Newest first within the day as well as between days. Consistency
+        // matters more here than reading a meal above the poop that followed
+        // it: what you nearly always want on opening this screen is the last
+        // thing that happened, and it should be at the top.
         day.entries
           .slice()
-          .sort(function (a, b) { return String(a.time).localeCompare(String(b.time)); })
+          .sort(function (a, b) { return String(b.time).localeCompare(String(a.time)); })
           .forEach(function (entry) { list.appendChild(buildCard(entry)); });
       });
 
