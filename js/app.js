@@ -20,6 +20,7 @@ import { createSavedScreen } from './screens/saved.js';
 import { createHistoryScreen } from './screens/history.js';
 import { getEnteredBy, setEnteredBy, needsIdentity, PEOPLE } from './identity.js';
 import { loadImageSizes } from './imageSizes.js';
+import { registerServiceWorker } from './serviceWorker.js';
 import { TYPES } from './records.js';
 
 // ---------------------------------------------------------------------------
@@ -194,6 +195,9 @@ async function start() {
   } else {
     router.start();
   }
+
+  // Production only -- see the comment in serviceWorker.js for why.
+  registerServiceWorker();
 
   // Load in the background. The app is usable before this resolves, which is
   // the point of the queue.
