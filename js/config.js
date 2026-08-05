@@ -25,7 +25,12 @@ export const STORAGE_KEYS = {
   mockRows: 'fp.mock.rows',
   mockFailureRate: 'fp.mock.failureRate',
   enteredBy: 'fp.enteredBy',
-  queue: 'fp.writeQueue'
+  queue: 'fp.writeQueue',
+
+  // The last header row we saw. Cached so that a cold start with no network
+  // still knows how many item slots the sheet has -- without it, an entry
+  // logged offline would sync with its items missing.
+  headers: 'fp.headers'
 };
 
 // ---------------------------------------------------------------------------

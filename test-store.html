@@ -1,0 +1,290 @@
+<!doctype html>
+<!--
+  Test harness for the model, queue and store, before any real UI exists.
+
+  The interesting behaviour here is timing, not values: a write must be visible
+  immediately even though the backend takes seconds, must survive a reload while
+  unsent, and must be undone if the server refuses it. Those are the things this
+  page checks.
+
+  Open with ?mock=1 (recommended) or ?mock=0. Serve over http://.
+-->
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>בדיקת Store</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 52rem; margin: 0 auto;
+             padding: 1rem; line-height: 1.5; }
+      #mode { padding: .5rem .75rem; border-radius: .375rem; font-weight: 600; }
+      #mode.mock { background: #fde68a; color: #713f12; }
+      #mode.live { background: #bbf7d0; color: #14532d; }
+      button { font: inherit; padding: .5rem .9rem; margin: .15rem 0;
+               border: 1px solid #cbd5e1; border-radius: .375rem;
+               background: #f8fafc; cursor: pointer; }
+      #log { direction: ltr; text-align: left; white-space: pre-wrap;
+             font-family: ui-monospace, Consolas, monospace; font-size: .8rem;
+             background: #0f172a; color: #e2e8f0; padding: .75rem;
+             border-radius: .375rem; min-height: 22rem; }
+      .pass { color: #4ade80; } .fail { color: #f87171; } .info { color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <h1>בדיקת המודל, התור והמצב</h1>
+    <p id="mode"></p>
+    <p><a href="?mock=1">מצב מוק</a> | <a href="?mock=0">שרת אמיתי</a></p>
+    <p>
+      <button id="run">הרץ בדיקה מלאה</button>
+      <button id="offline">תרחיש לא מקוון</button>
+      <button id="failures">הפעל 100% כשלים</button>
+      <button id="noFailures">בטל כשלים</button>
+      <button id="clearQueue">נקה תור</button>
+    </p>
+    <div id="log"></div>
+
+    <script type="module">
+      import * as api from './js/api.js';
+      import * as store from './js/store.js';
+      import { setMockFailureRate, getMockFailureRate } from './js/config.js';
+      import {
+        TYPES, buildRecord, readRecord, countItemSlots, POOP_KINDS, unitFor
+      } from './js/records.js';
+
+      const logElement = document.getElementById('log');
+      const write = (text, cls = '') => {
+        const line = document.createElement('div');
+        if (cls) line.className = cls;
+        line.textContent = text;
+        logElement.appendChild(line);
+      };
+      const check = (label, ok, detail = '') => {
+        write((ok ? 'PASS  ' : 'FAIL  ') + label + (detail ? '  -- ' + detail : ''),
+              ok ? 'pass' : 'fail');
+        return ok;
+      };
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+      const modeElement = document.getElementById('mode');
+      modeElement.textContent = api.usingMock
+        ? 'מצב מוק -- נתונים מקומיים בלבד'
+        : 'שרת אמיתי -- כתיבה לגיליון';
+      modeElement.className = api.usingMock ? 'mock' : 'live';
+
+      /** Waits until a condition holds or the timeout expires. */
+      async function waitFor(predicate, timeoutMs = 45000) {
+        const started = Date.now();
+        while (Date.now() - started < timeoutMs) {
+          if (predicate()) return Date.now() - started;
+          await sleep(50);
+        }
+        return -1;
+      }
+
+      async function run() {
+        logElement.textContent = '';
+        write('Backend: ' + (api.usingMock ? 'MOCK' : 'LIVE'), 'info');
+        write('Failure rate: ' + getMockFailureRate(), 'info');
+
+        // The full suite assumes a backend that answers. Running it with
+        // failures forced on produces failures that mean nothing -- use the
+        // dedicated offline scenario for that instead.
+        if (getMockFailureRate() >= 1) {
+          write('', '');
+          write('Failure rate is 100%. The full suite cannot pass in this mode.', 'fail');
+          write('Use "תרחיש לא מקוון" instead -- it tests exactly this case.', 'info');
+          return;
+        }
+        write('', '');
+
+        // ---- Pure model, no network -------------------------------------
+        write('-- model --', 'info');
+        const slots = countItemSlots(['id','time','type','notes','item1','amount1','item2','amount2']);
+        check('countItemSlots counts pairs', slots === 2, 'got ' + slots);
+
+        const built = buildRecord({
+          time: '2026-08-04T10:00:00.000Z', type: TYPES.FOOD, notes: 'בדיקה',
+          items: [{ name: 'בננה', amount: 100 }, { name: 'לחם', amount: 50 }],
+          enteredBy: 'אבא', slotCount: 6
+        });
+        check('buildRecord fills used slots', built.item1 === 'בננה' && built.amount2 === 50);
+        check('buildRecord clears unused slots', built.item6 === '' && built.amount6 === '');
+        check('buildRecord generates an id', Boolean(built.id));
+
+        const readBack = readRecord(built, 6);
+        check('readRecord drops empty slots', readBack.items.length === 2,
+              'got ' + readBack.items.length);
+        check('round trip preserves names', readBack.items[0].name === 'בננה');
+        check('unit implied by type', unitFor(TYPES.SYMPTOM) === 'דרגה' &&
+              unitFor(TYPES.POOP) === 'גרם');
+
+        // ---- Load ---------------------------------------------------------
+        write('', ''); write('-- load --', 'info');
+        await store.load();
+        const loaded = store.getState();
+        check('store loaded', loaded.loaded && !loaded.loadError, loaded.loadError || '');
+        check('slot count discovered', loaded.slotCount === 6, 'got ' + loaded.slotCount);
+        write('rows: ' + loaded.rows.length, 'info');
+
+        // The queue is durable on purpose, so a previous aborted run can leave
+        // operations behind. Say so loudly rather than letting them skew the
+        // assertions below.
+        const leftover = loaded.pendingCount;
+        if (leftover > 0) {
+          write('NOTE  ' + leftover + ' operation(s) left over from an earlier run; ' +
+                'draining before continuing.', 'info');
+        }
+
+        store.start();
+        await waitFor(() => store.getState().pendingCount === 0, 30000);
+
+        const rowsAtStart = store.getState().rows.length;
+
+        // ---- Optimistic write ---------------------------------------------
+        write('', ''); write('-- optimistic write --', 'info');
+        const record = buildRecord({
+          time: new Date().toISOString(), type: TYPES.POOP, notes: 'בדיקת חנות',
+          items: [{ name: POOP_KINDS[2], amount: 100 }],
+          enteredBy: 'test', slotCount: loaded.slotCount
+        });
+
+        const pendingBefore = store.getState().pendingCount;
+        const before = performance.now();
+        store.addEntry(record);
+        const elapsed = performance.now() - before;
+        const afterAdd = store.getState();
+
+        check('addEntry returns immediately', elapsed < 50, Math.round(elapsed) + 'ms');
+        check('row is visible at once', afterAdd.rows.some(r => r.id === record.id));
+        check('row count went up', afterAdd.rows.length === rowsAtStart + 1);
+
+        // Relative to whatever was already queued, not an absolute count.
+        check('write is marked pending', afterAdd.pendingCount === pendingBefore + 1,
+              pendingBefore + ' -> ' + afterAdd.pendingCount);
+
+        const drained = await waitFor(() => store.getState().pendingCount === 0);
+        check('queue drained', drained >= 0, drained + 'ms');
+        check('row still there after drain', store.getState().rows.some(r => r.id === record.id));
+
+        // ---- Update, then delete -------------------------------------------
+        write('', ''); write('-- update and delete --', 'info');
+        store.updateEntry({ id: record.id, notes: 'עודכן' });
+        const optimisticNote = store.getState().rows.find(r => r.id === record.id).notes;
+        check('update visible immediately', optimisticNote === 'עודכן', optimisticNote);
+        await waitFor(() => store.getState().pendingCount === 0);
+
+        const reread = store.entryById(record.id);
+        check('update survived the round trip', reread && reread.notes === 'עודכן');
+        check('untouched field survived', reread && reread.items[0].amount === 100);
+
+        store.deleteEntry(record.id);
+        check('row hidden immediately', !store.getState().rows.some(r => r.id === record.id));
+        await waitFor(() => store.getState().pendingCount === 0);
+        check('row count back to start', store.getState().rows.length === rowsAtStart,
+              store.getState().rows.length + ' vs ' + rowsAtStart);
+
+        // ---- Rollback on server refusal -------------------------------------
+        write('', ''); write('-- server refusal must roll back --', 'info');
+        const ghostId = crypto.randomUUID();
+        store.updateEntry({ id: ghostId, notes: 'לא קיים' });
+        await waitFor(() => store.getState().pendingCount === 0);
+        const failure = store.getState().lastError;
+        check('refusal reported', Boolean(failure), failure ? failure.message : 'no error recorded');
+        check('nothing left pending', store.getState().pendingCount === 0);
+        check('no ghost row remains', !store.getState().rows.some(r => r.id === ghostId));
+
+        // ---- Selectors -------------------------------------------------------
+        write('', ''); write('-- selectors --', 'info');
+        const frequent = store.frequentItems(TYPES.FOOD);
+        const known = store.knownItems(TYPES.FOOD);
+        check('frequentItems returns up to four', frequent.length <= 4, JSON.stringify(frequent));
+        check('knownItems is a superset', frequent.every(n => known.includes(n)),
+              known.length + ' known');
+        write('frequent foods: ' + JSON.stringify(frequent), 'info');
+
+        write('', ''); write('done', 'info');
+      }
+
+      /**
+       * The case that matters most on a phone: open the app with no signal,
+       * log an entry, regain signal. The regression this guards against is the
+       * schema being unknown offline, which silently dropped every item.
+       */
+      async function offlineScenario() {
+        logElement.textContent = '';
+        write('-- offline cold start --', 'info');
+        write('Assumes at least one successful load has happened before, so a', 'info');
+        write('header row is cached. Run the full suite first if unsure.', 'info');
+        write('', '');
+
+        // Go dark and reload the schema from cache rather than the network.
+        setMockFailureRate(1);
+        await store.load();
+        const offline = store.getState();
+
+        check('load failed, as intended', Boolean(offline.loadError), offline.loadError || '');
+        check('schema recovered from cache', store.schemaKnown(),
+              'slotCount: ' + offline.slotCount);
+        check('slot count is still 6', offline.slotCount === 6, 'got ' + offline.slotCount);
+
+        // Log a two-item meal while offline.
+        const record = buildRecord({
+          time: new Date().toISOString(), type: TYPES.FOOD, notes: 'נרשם ללא רשת',
+          items: [{ name: 'בננה', amount: 100 }, { name: 'לחם', amount: 50 }],
+          enteredBy: 'test', slotCount: offline.slotCount
+        });
+        store.addEntry(record);
+
+        const queued = store.getState().rows.find(r => r.id === record.id);
+        check('entry visible while offline', Boolean(queued));
+        check('items survived being written offline',
+              queued && queued.item1 === 'בננה' && queued.item2 === 'לחם',
+              queued ? JSON.stringify([queued.item1, queued.item2]) : '');
+        check('write is queued', store.getState().pendingCount === 1);
+
+        // Signal returns.
+        write('', ''); write('-- signal returns --', 'info');
+        setMockFailureRate(0);
+        const drained = await waitFor(() => store.getState().pendingCount === 0, 30000);
+        check('queue drained once online', drained >= 0, drained + 'ms');
+
+        const landed = store.entryById(record.id);
+        check('entry reached the backend intact',
+              landed && landed.items.length === 2,
+              landed ? JSON.stringify(landed.items) : 'not found');
+
+        // Clean up after ourselves.
+        store.deleteEntry(record.id);
+        await waitFor(() => store.getState().pendingCount === 0, 30000);
+        write('', ''); write('done', 'info');
+      }
+
+      document.getElementById('offline').addEventListener('click', () =>
+        offlineScenario().catch(err => {
+          write('THREW  ' + err.name + ': ' + err.message, 'fail');
+          setMockFailureRate(0);
+          console.error(err);
+        }));
+
+      document.getElementById('run').addEventListener('click', () => run().catch(err => {
+        write('THREW  ' + err.name + ': ' + err.message, 'fail');
+        console.error(err);
+      }));
+      document.getElementById('failures').addEventListener('click', () => {
+        setMockFailureRate(1);
+        write('Failure rate 100%. Add something, then set it back to 0 and watch it drain.', 'info');
+      });
+      document.getElementById('noFailures').addEventListener('click', () => {
+        setMockFailureRate(0);
+        write('Failure rate 0.', 'info');
+      });
+      document.getElementById('clearQueue').addEventListener('click', () => {
+        store.clearQueue();
+        write('Queue cleared.', 'info');
+      });
+
+      // Live view of pending writes, so the retry behaviour is watchable.
+      store.subscribe(s => { document.title = s.pendingCount ? `(${s.pendingCount}) ממתין` : 'בדיקת Store'; });
+    </script>
+  </body>
+</html>
