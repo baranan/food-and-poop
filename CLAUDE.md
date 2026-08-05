@@ -146,10 +146,13 @@ same six image buttons, using poop-sized photographs), `מתי`, `הערות`.
 **תסמין.** Repeating item blocks: `תסמין` (free text with the same autocomplete
 behaviour as `מזון`) and `חומרה` (1-10). Plus `מתי` and `הערות` for the entry.
 
-**היסטוריה.** Three columns on a shared vertical time axis -- אוכל, קקי, תסמין --
-so that what went in lines up visually with what came out. Each entry is drawn
-with a distinct icon and colour for its type, so the type is readable at a
-glance, alongside its date and time. Tap to open and edit; select and delete.
+**היסטוריה.** One chronological column on a shared vertical time axis, grouped
+by day, so that what went in reads against what came out. Three parallel columns
+were considered and rejected: on a phone they are too narrow to read, and
+interleaving by time says the same thing. Type is carried by a distinct icon and
+colour rather than by position, alongside the time. Tap to open and edit;
+`בחירה` turns on checkboxes for deleting several at once. Older days are
+revealed a week at a time.
 
 **ניתוח.** Placeholder for now. The analyses we actually want to look at will be
 designed later.

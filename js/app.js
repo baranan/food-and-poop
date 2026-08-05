@@ -15,7 +15,12 @@ import { createRouter } from './router.js';
 import { initDebug, attachLongPress } from './ui/debug.js';
 import { createHomeScreen } from './screens/home.js';
 import { createPlaceholderScreen } from './screens/placeholder.js';
+import { createEntryFormScreen } from './screens/entryForm.js';
+import { createSavedScreen } from './screens/saved.js';
+import { createHistoryScreen } from './screens/history.js';
 import { getEnteredBy, setEnteredBy, needsIdentity, PEOPLE } from './identity.js';
+import { loadImageSizes } from './imageSizes.js';
+import { TYPES } from './records.js';
 
 // ---------------------------------------------------------------------------
 // Elements from the shell.
@@ -94,10 +99,16 @@ const placeholder = createPlaceholderScreen(router);
 
 Object.assign(routes, {
   home: createHomeScreen(router),
-  food: placeholder,
-  poop: placeholder,
-  symptom: placeholder,
-  history: placeholder,
+
+  // One form implementation, three types. The differences live in CONFIG inside
+  // entryForm.js: how an item is named, how an amount is picked, and whether
+  // more than one item is allowed.
+  food: createEntryFormScreen(TYPES.FOOD, router),
+  poop: createEntryFormScreen(TYPES.POOP, router),
+  symptom: createEntryFormScreen(TYPES.SYMPTOM, router),
+  saved: createSavedScreen(router),
+
+  history: createHistoryScreen(router),
   analysis: placeholder
 });
 
@@ -145,14 +156,37 @@ async function start() {
   });
 
   // Redraw the home screen whenever state changes, so the "last logged" lines
-  // and the sync bar stay honest. Other screens redraw themselves; re-rendering
+  // and the sync bar stay honest. Other screens are left alone -- re-rendering
   // a form under the user would throw away what they were typing.
+  //
+  // The one exception is the moment the schema first becomes known: a form
+  // rendered before that has no item slots to draw, so it must be rebuilt.
+  let schemaWasKnown = store.schemaKnown();
+
   store.subscribe(function (state) {
     renderSyncBar(state);
-    if (router.currentName() === 'home') router.render();
+
+    const schemaIsKnown = store.schemaKnown();
+    const schemaJustArrived = schemaIsKnown && !schemaWasKnown;
+    schemaWasKnown = schemaIsKnown;
+
+    if (router.currentName() === 'home' || schemaJustArrived) router.render();
   });
 
+  // The app title and the identity chip only earn their row on the home screen.
+  // Every other screen names itself, so hide the chrome there.
+  function updateChrome() {
+    const onHome = (location.hash.replace(/^#/, '').split('/')[0] || 'home') === 'home';
+    document.querySelector('.header').hidden = !onHome;
+  }
+  window.addEventListener('hashchange', updateChrome);
+  updateChrome();
+
   renderSyncBar(store.getState());
+
+  // The quantity buttons need the tiles' true sizes before they can be drawn in
+  // proportion, and this is a 600-byte local file.
+  await loadImageSizes();
 
   // Ask who is logging before anything else, but only once per device.
   if (needsIdentity()) {

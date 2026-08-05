@@ -36,8 +36,8 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-  font-size: 17px;
-  line-height: 1.45;
+  font-size: 16px;
+  line-height: 1.35;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -56,10 +56,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .app {
   max-width: 32rem;
   margin: 0 auto;
-  padding: 1rem 1rem 0;
+  padding: .6rem .75rem 0;
 }
 
-.screen { display: grid; gap: 1rem; }
+.screen { display: grid; gap: .8rem; }
 
 /* ---- Header ------------------------------------------------------------- */
 
@@ -70,6 +70,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   gap: .5rem;
   padding: .25rem 0 .5rem;
 }
+
+.header[hidden] { display: none; }
 
 .header h1 {
   font-size: 1.35rem;
@@ -278,3 +280,449 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .debug-panel .lines div { padding: .1rem 0; border-bottom: 1px solid #16202f; }
 .debug-panel .lines .warn { color: #fbbf24; }
 .debug-panel .lines .error { color: #f87171; }
+
+/* ---- Entry form ---------------------------------------------------------- */
+
+.entry-form { gap: .6rem; }
+
+.form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+}
+
+.form-header h2 { font-size: 1.15rem; }
+
+.entry-form.food .form-header h2 { color: var(--food); }
+.entry-form.poop .form-header h2 { color: var(--poop); }
+.entry-form.symptom .form-header h2 { color: var(--symptom); }
+
+.text-button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: .9rem;
+  padding: .3rem .4rem;
+  text-decoration: underline;
+}
+
+.field { display: grid; gap: .3rem; }
+
+.field-label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ---- Collapsed sections --------------------------------------------------
+   Anything not needed at rest sits behind a one-line summary that still states
+   its current value, so the form fits a phone screen without scrolling. */
+
+.collapsible {
+  border: 1px solid var(--line);
+  border-radius: .6rem;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.collapsible-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: .5rem;
+  padding: .45rem .6rem;
+  background: none;
+  border: none;
+}
+
+.collapsible-summary {
+  margin-inline-start: auto;
+  font-size: .9rem;
+  color: var(--muted);
+}
+
+.collapsible.filled .collapsible-summary { color: var(--text); font-weight: 600; }
+
+.chevron { color: var(--muted); transition: transform .15s ease; }
+.collapsible.open .chevron { transform: rotate(180deg); }
+
+.collapsible-panel { padding: .5rem; border-top: 1px solid var(--line); }
+.collapsible-panel[hidden] { display: none; }
+
+/* ---- מתי ------------------------------------------------------------------ */
+
+.when-row {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+  padding: .4rem .6rem;
+  background: var(--surface);
+  border-radius: .6rem;
+  box-shadow: var(--shadow);
+}
+
+.when-caption { flex: none; }
+
+.time-input {
+  flex: 1;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: center;
+  padding: .3rem;
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+  background: var(--bg);
+  color: inherit;
+}
+
+.date-button {
+  flex: none;
+  min-width: 4.5rem;
+  padding: .4rem .7rem;
+  font-size: .95rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+  background: var(--bg);
+}
+
+/* Today is the default, so it is quiet; anything else is worth noticing. */
+.date-button:not(.is-today) {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #9a3412;
+}
+
+/* Present for the picker, never shown. */
+.hidden-date {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- Item blocks ----------------------------------------------------------- */
+
+.items { display: grid; gap: .5rem; }
+
+.item-block {
+  display: grid;
+  gap: .4rem;
+  padding: .55rem .6rem;
+  background: var(--surface);
+  border-radius: .8rem;
+  box-shadow: var(--shadow);
+}
+
+.block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 1rem;
+}
+
+.block-label { font-size: .75rem; }
+
+.remove-item {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  padding: .1rem .5rem;
+  line-height: 1;
+}
+
+.remove-item[hidden] { display: none; }
+
+/* ---- Choice buttons -------------------------------------------------------- */
+
+.choice-row { display: flex; flex-wrap: wrap; gap: .3rem; }
+
+.choice-button {
+  padding: .45rem .8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: .95rem;
+}
+
+.choice-button.selected {
+  background: var(--text);
+  color: #fff;
+  border-color: var(--text);
+}
+
+/* The ten shortcuts have to fit above the input without pushing it off the
+   screen, so they are deliberately small. */
+.choice-row.shortcuts .choice-button {
+  font-size: .78rem;
+  padding: .25rem .55rem;
+}
+
+/* Severity 1-10 wants to stay on two tidy rows rather than wrap raggedly. */
+.choice-row.severity { display: grid; grid-template-columns: repeat(5, 1fr); }
+.choice-row.severity .choice-button { padding: .6rem 0; text-align: center; }
+
+/* ---- Free-text item name ---------------------------------------------------- */
+
+.item-name-field { display: grid; gap: .4rem; }
+
+.input-row { position: relative; }
+
+.text-input {
+  width: 100%;
+  font: inherit;
+  padding: .5rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: .6rem;
+  background: var(--bg);
+  color: inherit;
+}
+
+.suggestions {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + .25rem);
+  z-index: 10;
+  display: grid;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: .75rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.suggestion {
+  border: none;
+  background: none;
+  text-align: start;
+  padding: .6rem .8rem;
+  font-size: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.suggestion:last-child { border-bottom: none; }
+
+/* ---- Quantity photographs ---------------------------------------------------
+   The images are drawn at their true relative sizes, which is the entire reason
+   they exist. Do not make them uniform. */
+
+.amount-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .35rem;
+}
+
+.amount-button {
+  display: grid;
+  gap: .1rem;
+  padding: .2rem;
+  border: 2px solid var(--line);
+  border-radius: .6rem;
+  background: var(--surface);
+}
+
+.amount-button.selected {
+  border-color: var(--text);
+  background: var(--bg);
+}
+
+.amount-image {
+  height: 4rem;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.amount-image img { display: block; height: auto; }
+
+.amount-caption { font-size: .78rem; font-weight: 600; color: var(--muted); }
+.amount-button.selected .amount-caption { color: var(--text); }
+
+/* ---- Notes, add, submit ------------------------------------------------------ */
+
+.notes-input {
+  width: 100%;
+  font: inherit;
+  padding: .5rem .6rem;
+  border: 1px solid var(--line);
+  border-radius: .6rem;
+  background: var(--surface);
+  color: inherit;
+  resize: vertical;
+}
+
+.add-item {
+  padding: .45rem;
+  border: 1px dashed #c3cad4;
+  border-radius: .6rem;
+  background: none;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.add-item[hidden] { display: none; }
+
+.submit-button {
+  min-height: 3rem;
+  border: none;
+  border-radius: .8rem;
+  background: var(--text);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+
+.form-error {
+  padding: .45rem .7rem;
+  border-radius: .6rem;
+  background: var(--symptom-soft);
+  color: var(--symptom);
+  font-size: .9rem;
+}
+
+.form-error[hidden] { display: none; }
+
+/* ---- Saved confirmation -------------------------------------------------------- */
+
+.saved-card {
+  padding: 1.1rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border-inline-start: 5px solid var(--line);
+}
+
+.saved-card.food { border-inline-start-color: var(--food); }
+.saved-card.poop { border-inline-start-color: var(--poop); }
+.saved-card.symptom { border-inline-start-color: var(--symptom); }
+
+.saved-title { font-size: 1.2rem; font-weight: 700; }
+.saved-when { color: var(--muted); font-size: .9rem; margin-bottom: .6rem; }
+
+.saved-items { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+
+.saved-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .4rem .1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.saved-items li:last-child { border-bottom: none; }
+.saved-amount { color: var(--muted); }
+
+.saved-notes {
+  margin-top: .6rem;
+  padding-top: .6rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .95rem;
+}
+
+.saved-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+
+.medium-button.primary {
+  background: var(--text);
+  color: #fff;
+  border-color: var(--text);
+}
+
+.secondary-actions.three { grid-template-columns: repeat(3, 1fr); }
+.secondary-actions.three .medium-button { font-size: 1rem; }
+
+/* ---- History -------------------------------------------------------------
+   One chronological column. Type is carried by the coloured stripe and the
+   icon, so it reads at a glance without three narrow columns. */
+
+.history { gap: .6rem; }
+
+.history-controls { display: flex; gap: .25rem; align-items: center; }
+
+.history-list { display: grid; gap: .3rem; }
+
+.day-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: .4rem .2rem .25rem;
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg);
+}
+
+.entry-card {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  width: 100%;
+  padding: .5rem .6rem;
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--line);
+  border-radius: .6rem;
+}
+
+.entry-card.food { border-inline-start-color: var(--food); }
+.entry-card.poop { border-inline-start-color: var(--poop); }
+.entry-card.symptom { border-inline-start-color: var(--symptom); }
+
+.entry-card.selected { background: #eef2ff; border-color: #6366f1; }
+
+.entry-icon { font-size: 1.15rem; flex: none; }
+
+.entry-body { display: grid; gap: .1rem; flex: 1; min-width: 0; }
+
+.entry-items {
+  font-size: .92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-notes {
+  font-size: .78rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-time {
+  flex: none;
+  font-size: .8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.entry-tick {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid #6366f1;
+  border-radius: .3rem;
+  font-size: .8rem;
+  color: #4338ca;
+}
+
+.delete-bar { display: grid; }
+.delete-bar[hidden] { display: none; }
+
+.delete-button {
+  padding: .6rem;
+  border: none;
+  border-radius: .6rem;
+  background: var(--symptom);
+  color: #fff;
+  font-weight: 700;
+}
+
+.delete-button:disabled { background: var(--line); color: var(--muted); }

@@ -280,3 +280,13 @@ export function clearQueue() {
   queue.clear();
   recompute();
 }
+
+// ---------------------------------------------------------------------------
+// Restore the cached schema synchronously, at import time.
+//
+// Without this, any screen rendered before load() resolves sees slotCount 0 and
+// cannot draw its item slots -- which is what happens on every reload, since
+// the router starts before the network call finishes.
+// ---------------------------------------------------------------------------
+
+restoreCachedSchema();

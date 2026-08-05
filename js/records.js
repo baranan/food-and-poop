@@ -175,24 +175,58 @@ export function itemNamesForType(rows, type, slotCount) {
 }
 
 /**
- * The most frequently used item names for a type, counted over the most recent
- * `fromLastEntries` entries of that type. Feeds the one-tap buttons.
+ * What the one-tap buttons show before there is any history to learn from.
+ * Once a few days have been logged these are pushed out by real usage.
  */
-export function frequentItemNames(rows, type, slotCount, { fromLastEntries = 50, limit = 4 } = {}) {
-  const recent = rows
-    .filter(function (row) { return row.type === type; })
-    .sort(function (a, b) { return String(a.time).localeCompare(String(b.time)); })
-    .slice(-fromLastEntries);
+export const DEFAULT_ITEMS = {
+  [TYPES.FOOD]: [
+    'גרילד צ\'יז', 'שניצל', 'מלפפון', 'עגבניית שרי', 'גזר',
+    'תפוח', 'אורז', 'פסטה', 'המבורגר בלחמניה', 'מילקי'
+  ],
+  // Only one default here on purpose. The field stays free text, so anything
+  // else that turns up gets learned from history rather than guessed at.
+  [TYPES.SYMPTOM]: ['כאב בטן'],
+
+  // Never used: קקי picks from a fixed list of consistencies instead.
+  [TYPES.POOP]: []
+};
+
+/**
+ * The most used item names for a type over the last `withinDays` days.
+ *
+ * A time window rather than a count of entries, because what matters is what he
+ * has been eating lately -- a fixed number of entries would stretch further back
+ * in a quiet week than a busy one, which is the wrong behaviour for a shortcut.
+ *
+ * Short of `limit`, the list is padded from DEFAULT_ITEMS so the buttons are
+ * useful from the first day, before any statistics exist.
+ */
+export function frequentItemNames(rows, type, slotCount, { withinDays = 10, limit = 10 } = {}) {
+  const cutoff = Date.now() - withinDays * 24 * 60 * 60 * 1000;
 
   const counts = new Map();
-  recent.forEach(function (row) {
-    readRecord(row, slotCount).items.forEach(function (item) {
-      counts.set(item.name, (counts.get(item.name) || 0) + 1);
+  rows
+    .filter(function (row) {
+      if (row.type !== type) return false;
+      const time = new Date(row.time).getTime();
+      return !isNaN(time) && time >= cutoff;
+    })
+    .forEach(function (row) {
+      readRecord(row, slotCount).items.forEach(function (item) {
+        counts.set(item.name, (counts.get(item.name) || 0) + 1);
+      });
     });
-  });
 
-  return Array.from(counts.entries())
+  const ranked = Array.from(counts.entries())
     .sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0]); })
     .slice(0, limit)
     .map(function (pair) { return pair[0]; });
+
+  // Top up with the defaults, skipping anything already present.
+  const defaults = DEFAULT_ITEMS[type] || [];
+  for (let i = 0; ranked.length < limit && i < defaults.length; i++) {
+    if (!ranked.includes(defaults[i])) ranked.push(defaults[i]);
+  }
+
+  return ranked;
 }
