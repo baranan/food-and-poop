@@ -1,37 +1,47 @@
 <!doctype html>
 <!--
-  Throwaway smoke-test page. Its only job is to prove that GitHub Pages serves
-  this repo over HTTPS and that both phones can reach it. It will be replaced
-  wholesale by the real app.
+  Application shell.
 
-  It prints the load time so that a stale cached copy is obvious at a glance:
-  reload, and if the time does not change, you are looking at a cache.
+  Everything visible is built by js/app.js; this file exists to define the small
+  number of fixed slots those modules write into, and to get the language and
+  direction right before the first paint.
+
+  ?mock=1 runs against localStorage instead of the sheet. ?debug=1 opens the log
+  panel, which can also be reached by long-pressing the title.
 -->
 <html lang="he" dir="rtl">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>אוכל וקקי</title>
-    <style>
-      body {
-        font-family: system-ui, sans-serif;
-        display: grid;
-        place-content: center;
-        min-height: 100vh;
-        margin: 0;
-        text-align: center;
-      }
-      time { font-variant-numeric: tabular-nums; color: #666; }
-    </style>
-  </head>
-  <body>
-    <h1>שלום</h1>
-    <p>הדף נטען ב־<time id="t"></time></p>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#f6f7f9" />
 
-    <!-- Stamp the load time, so a cached page is distinguishable from a fresh one -->
-    <script>
-      document.getElementById('t').textContent =
-        new Date().toLocaleTimeString('he-IL');
-    </script>
+    <!-- Lets the app open full-screen once added to a phone's home screen. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="אוכל וקקי" />
+
+    <title>אוכל וקקי</title>
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+
+  <body>
+    <!-- Filled only in mock mode. -->
+    <div id="banner"></div>
+
+    <div class="app">
+      <header class="header">
+        <h1 id="title">אוכל וקקי</h1>
+        <button id="who" class="who" type="button">מי?</button>
+      </header>
+
+      <!-- Every screen is rendered here by the router. -->
+      <main id="outlet"></main>
+    </div>
+
+    <!-- Pinned to the bottom; the only place the app admits writing takes time. -->
+    <div id="sync" class="sync-bar">טוען…</div>
+
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>

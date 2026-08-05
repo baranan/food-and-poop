@@ -1,0 +1,280 @@
+/*
+  Styles for the whole app.
+  Hebrew and RTL throughout; "right" and "left" below mean literal screen sides.
+  Sized for a phone held one-handed, since that is where most entries happen.
+*/
+
+/* ---- Design tokens ------------------------------------------------------ */
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #14181f;
+  --muted: #6b7482;
+  --line: #e2e6ec;
+
+  /* One colour per entry type, used by every screen so a type is recognisable
+     at a glance without reading it. */
+  --food: #15803d;
+  --food-soft: #dcfce7;
+  --poop: #92400e;
+  --poop-soft: #fde9c8;
+  --symptom: #b91c1c;
+  --symptom-soft: #fee2e2;
+
+  --radius: 1rem;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 4px 12px rgba(16, 24, 40, .05);
+}
+
+/* ---- Base --------------------------------------------------------------- */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Room for the sync bar pinned to the bottom, plus the iPhone home indicator. */
+body {
+  min-height: 100dvh;
+  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+h1, h2, h3 { margin: 0; font-weight: 700; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* ---- Layout ------------------------------------------------------------- */
+
+.app {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 0;
+}
+
+.screen { display: grid; gap: 1rem; }
+
+/* ---- Header ------------------------------------------------------------- */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .25rem 0 .5rem;
+}
+
+.header h1 {
+  font-size: 1.35rem;
+  letter-spacing: -.01em;
+
+  /* Long-pressing the title opens the debug panel. Deliberately undiscoverable,
+     and the reason text selection is off here. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.header .who {
+  font-size: .85rem;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .2rem .7rem;
+}
+
+/* ---- Mock banner --------------------------------------------------------
+   Deliberately loud. Someone logging three real meals into localStorage and
+   losing them is exactly what this prevents. */
+
+.mock-banner {
+  background: repeating-linear-gradient(
+    45deg, #fde047, #fde047 12px, #facc15 12px, #facc15 24px);
+  color: #422006;
+  font-weight: 700;
+  text-align: center;
+  padding: .5rem .75rem;
+  font-size: .9rem;
+}
+
+/* ---- Home buttons -------------------------------------------------------- */
+
+.primary-actions { display: grid; gap: .75rem; }
+
+.big-button {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  min-height: 5.25rem;
+  padding: 1rem 1.25rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-align: start;
+  transition: transform .08s ease;
+}
+
+.big-button:active { transform: scale(.985); }
+
+.big-button .icon {
+  font-size: 2.1rem;
+  line-height: 1;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: .75rem;
+  flex: none;
+}
+
+.big-button .label { font-size: 1.5rem; font-weight: 700; }
+.big-button .sub { display: block; font-size: .85rem; font-weight: 400; color: var(--muted); }
+
+.big-button.food .icon { background: var(--food-soft); }
+.big-button.food .label { color: var(--food); }
+.big-button.poop .icon { background: var(--poop-soft); }
+.big-button.poop .label { color: var(--poop); }
+.big-button.symptom .icon { background: var(--symptom-soft); }
+.big-button.symptom .label { color: var(--symptom); }
+
+/* ---- Secondary actions --------------------------------------------------- */
+
+.secondary-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+
+.medium-button {
+  min-height: 3.5rem;
+  border: 1px solid var(--line);
+  border-radius: .875rem;
+  background: var(--surface);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* The file link is meant to be reachable but not easy to hit by accident. */
+.file-link {
+  display: block;
+  width: fit-content;
+  margin: .5rem auto 1rem;
+  padding: .3rem .8rem;
+  font-size: .8rem;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--line);
+}
+
+/* ---- Identity chooser ---------------------------------------------------- */
+
+.identity {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.identity .choices { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+
+.identity button {
+  min-height: 4rem;
+  border: 1px solid var(--line);
+  border-radius: .875rem;
+  background: var(--bg);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* ---- Sync bar ------------------------------------------------------------ */
+
+.sync-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  padding: .5rem 1rem calc(.5rem + env(safe-area-inset-bottom, 0px));
+  font-size: .8rem;
+  text-align: center;
+  color: var(--muted);
+  background: rgba(246, 247, 249, .95);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+}
+
+.sync-bar.pending { color: #92400e; background: #fef7e6; }
+.sync-bar.error { color: #b91c1c; background: #fee2e2; }
+
+/* ---- Placeholder --------------------------------------------------------- */
+
+.placeholder {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.back-button {
+  border: 1px solid var(--line);
+  border-radius: .75rem;
+  background: var(--surface);
+  padding: .5rem 1rem;
+  width: fit-content;
+}
+
+/* ---- Debug panel ---------------------------------------------------------
+   The iPhone here cannot be remote-debugged, so this is the only way to see
+   what went wrong on it. */
+
+.debug-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.debug-panel[hidden] { display: none; }
+
+.debug-panel .bar {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  padding: .5rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.debug-panel .bar button {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: none;
+  border-radius: .5rem;
+  padding: .4rem .7rem;
+  font-size: .85rem;
+}
+
+.debug-panel .lines {
+  direction: ltr;
+  text-align: left;
+  overflow: auto;
+  padding: .5rem;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: .72rem;
+  white-space: pre-wrap;
+}
+
+.debug-panel .lines div { padding: .1rem 0; border-bottom: 1px solid #16202f; }
+.debug-panel .lines .warn { color: #fbbf24; }
+.debug-panel .lines .error { color: #f87171; }

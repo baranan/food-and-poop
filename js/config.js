@@ -12,6 +12,11 @@ export const API_URL =
 
 export const TOKEN = 'f2272bc1-9faf-4a94-87b5-db48f96e212d';
 
+// The sheet itself, for the קובץ button. We just hand the OS the link and let
+// it decide what opens it -- the Sheets app on a phone, a browser on a desktop.
+export const SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1jqMnYxqYoIjoqpZyhi7HDvjRUxK2DgVZXT7oRcVmb3A/edit';
+
 // How the mock behaves. A mock that answers instantly would mean the optimistic
 // UI and the offline queue never run in their interesting states, so this
 // imitates the real thing. The range is calibrated against a measured live run:
