@@ -62,9 +62,18 @@ export function createEntryFormScreen(type, router) {
   const config = CONFIG[type];
   const style = styleFor(type);
 
-  return function entryFormScreen(editId) {
+  return function entryFormScreen(editId, from) {
     const existing = editId ? store.entryById(editId) : null;
     const slotCount = store.getState().slotCount;
+
+    // Carried through so that editing an entry reached from היסטוריה returns
+    // there rather than dumping the user on the home screen.
+    const cameFromHistory = from === 'history';
+    const trail = cameFromHistory ? '/history' : '';
+    const leave = function () {
+      if (cameFromHistory) router.go('history');
+      else router.goHome();
+    };
 
     // On the very first run there is no cached header row yet, so we do not
     // know how many item slots exist. Say so plainly rather than drawing a form
@@ -80,7 +89,7 @@ export function createEntryFormScreen(type, router) {
       const back = document.createElement('button');
       back.className = 'back-button';
       back.textContent = 'חזרה';
-      back.addEventListener('click', function () { router.goHome(); });
+      back.addEventListener('click', leave);
 
       waiting.append(box, back);
       return waiting;
@@ -103,7 +112,7 @@ export function createEntryFormScreen(type, router) {
     cancel.type = 'button';
     cancel.className = 'text-button';
     cancel.textContent = 'ביטול';
-    cancel.addEventListener('click', function () { router.goHome(); });
+    cancel.addEventListener('click', leave);
 
     header.append(heading, cancel);
 
@@ -262,7 +271,7 @@ export function createEntryFormScreen(type, router) {
       if (existing) store.updateEntry(record);
       else store.addEntry(record);
 
-      router.go('saved/' + record.id);
+      router.go('saved/' + record.id + trail);
     });
 
     function showError(message) {

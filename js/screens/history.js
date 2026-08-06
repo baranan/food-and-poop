@@ -20,6 +20,13 @@ import { formatTime, formatDayHeading } from '../format.js';
 const DAYS_PER_PAGE = 7;
 
 export function createHistoryScreen(router) {
+  // Remembered across renders so that opening an entry and coming back lands
+  // you where you were, rather than at the top of a long list. Only restored
+  // when we know it is a return trip; arriving from the home screen starts at
+  // the top, which is what you want there.
+  let lastScrollY = 0;
+  let restoreScroll = false;
+
   return function historyScreen() {
     let visibleDays = DAYS_PER_PAGE;
     let selecting = false;
@@ -125,7 +132,12 @@ export function createHistoryScreen(router) {
           redraw();
           return;
         }
-        router.go(style.route + '/' + entry.id);
+
+        // Open the detail view, not the editor. It carries `history` so that
+        // תודה and היסטוריה come back here, to this position.
+        lastScrollY = window.scrollY;
+        restoreScroll = true;
+        router.go('saved/' + entry.id + '/history');
       });
 
       if (selecting) {
@@ -223,6 +235,14 @@ export function createHistoryScreen(router) {
 
     screen.append(header, deleteBar, list, moreButton);
     redraw();
+
+    // The router scrolls to the top after inserting a screen, so this has to
+    // run afterwards.
+    if (restoreScroll) {
+      const target = lastScrollY;
+      restoreScroll = false;
+      requestAnimationFrame(function () { window.scrollTo(0, target); });
+    }
 
     // Keep the list live: a write landing, or an entry deleted on the other
     // phone, should show up without navigating away and back.

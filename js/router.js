@@ -12,23 +12,29 @@
 export function createRouter({ routes, outlet, onBeforeLeave }) {
   let current = null;
 
-  /** Splits `#food/abc` into `['food', 'abc']`. */
+  /**
+   * Splits `#saved/abc/history` into `['saved', 'abc', 'history']`.
+   *
+   * Everything after the screen name is handed to it as arguments. The second
+   * segment is usually a record id; a third is used to say where the user came
+   * from, so a screen can send them back there rather than always home.
+   */
   function parse() {
     const raw = location.hash.replace(/^#/, '');
-    if (!raw) return ['home', undefined];
-    const [name, param] = raw.split('/');
-    return [name || 'home', param];
+    if (!raw) return ['home'];
+    const segments = raw.split('/');
+    return segments[0] ? segments : ['home'].concat(segments.slice(1));
   }
 
   function render() {
-    const [name, param] = parse();
+    const [name, ...args] = parse();
     const screen = routes[name] || routes.home;
 
     // Let the outgoing screen object -- an entry form with unsaved input can
     // ask for confirmation rather than being torn out from under the user.
     if (current && onBeforeLeave && onBeforeLeave(current) === false) return;
 
-    outlet.replaceChildren(screen(param));
+    outlet.replaceChildren(screen(...args));
     current = name;
 
     // A new screen always starts at the top; otherwise going back into a long

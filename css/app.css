@@ -632,8 +632,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
   border-color: var(--text);
 }
 
-.secondary-actions.three { grid-template-columns: repeat(3, 1fr); }
-.secondary-actions.three .medium-button { font-size: 1rem; }
+/* The detail screen offers four onward buttons -- the three entry types plus
+   היסטוריה -- which sit as a 2x2 block in the default two-column grid. */
+.saved-card + .saved-actions + .secondary-actions .medium-button { font-size: 1rem; }
 
 /* ---- History -------------------------------------------------------------
    One chronological column. Type is carried by the coloured stripe and the
