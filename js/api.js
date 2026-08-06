@@ -6,8 +6,8 @@
  * got, or import api.remote.js or api.mock.js directly.
  *
  * `delete` is a reserved word in JavaScript, so the fourth operation is called
- * `remove`. That is the only place this file's vocabulary differs from
- * CLAUDE.md's list, add, update, delete.
+ * `remove` here. The action sent over the wire is still `delete`, which is what
+ * Code.gs switches on.
  */
 
 import { isMockMode } from './config.js';

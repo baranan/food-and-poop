@@ -70,6 +70,69 @@ export function countItemSlots(headers) {
 }
 
 // ---------------------------------------------------------------------------
+// Tolerating hand-typed times.
+//
+// The app always writes toISOString(). But hand-editing the sheet is a hard
+// requirement, and a person typing into the `time` cell will write whatever
+// looks natural -- '06/08/2026 14:30', or what Sheets itself displays. Those
+// strings sort wrongly against ISO ones (a space sorts before 'T') and parse as
+// the wrong instant, so every row is passed through here on the way in.
+//
+// Two deliberate limits. Dates are read as he-IL day-first, because that is
+// what the two people editing this sheet will type. And anything unparseable is
+// returned untouched rather than guessed at -- a wrong timestamp that looks
+// right is worse than an obviously odd one.
+//
+// Nothing is written back. The sheet is yours to edit, and an app that silently
+// rewrites your corrections would be worse than one that tolerates them. A row
+// heals itself the next time it is opened and saved.
+// ---------------------------------------------------------------------------
+
+/** Local Y/M/D H:M -> the ISO string the rest of the app expects. */
+function isoFromLocalParts(year, month, day, hours, minutes, seconds) {
+  const date = new Date(year, month - 1, day, hours || 0, minutes || 0, seconds || 0, 0);
+  return isNaN(date) ? null : date.toISOString();
+}
+
+export function normalizeTime(value) {
+  if (value === null || value === undefined) return '';
+
+  // Sheets can hand back a real Date if the column formatting was ever lost.
+  if (value instanceof Date) return isNaN(value) ? '' : value.toISOString();
+
+  const text = String(value).trim();
+  if (text === '') return '';
+
+  // Already what we write. Leave it exactly as it is, byte for byte.
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text)) return text;
+
+  // '2026-08-06 14:30' / '2026-08-06 14:30:00' -- how Sheets displays a
+  // timestamp, and what gets typed after copying one.
+  let match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ ]+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (match) {
+    return isoFromLocalParts(+match[1], +match[2], +match[3], +match[4], +match[5], +match[6])
+      || text;
+  }
+
+  // '06/08/2026 14:30', '6.8.2026 14:30', or either with no time at all.
+  // Day first, per he-IL.
+  match = text.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})(?:[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (match) {
+    return isoFromLocalParts(+match[3], +match[2], +match[1], +match[4], +match[5], +match[6])
+      || text;
+  }
+
+  // A bare date, which we read as midnight local.
+  match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (match) {
+    return isoFromLocalParts(+match[1], +match[2], +match[3], 0, 0, 0) || text;
+  }
+
+  // Unrecognised. Hand it back untouched and let it be visibly odd.
+  return text;
+}
+
+// ---------------------------------------------------------------------------
 // Wide row  ->  entry object.
 // ---------------------------------------------------------------------------
 

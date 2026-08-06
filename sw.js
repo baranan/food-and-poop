@@ -18,44 +18,42 @@
  * Requests to the Apps Script API are never touched. A cached reply would mean
  * showing a stale log, which is worse than showing none.
  *
- * Bump CACHE_VERSION whenever the precache list changes.
+ * Bump CACHE_VERSION whenever the precache list or the logic here changes.
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = 'food-and-poop-' + CACHE_VERSION;
 
-// Everything needed for a cold start with no network. Relative paths, because
-// the app is served from a project subpath on GitHub Pages.
+// ---------------------------------------------------------------------------
+// What has to be listed by hand.
+//
+// Note what is *not* here: the ES modules under js/. index.html loads
+// js/app.js as a module, so the browser fetches the whole import graph on the
+// first visit, and the network-first handler below caches each file as it goes.
+// Listing them as well would mean maintaining a copy of the file tree, and the
+// failure mode of forgetting one is invisible -- a module missing from the list
+// only breaks the app offline, and the cache.add below merely warns. So the
+// modules look after themselves, and adding one needs no edit here.
+//
+// What remains is what the import graph cannot reveal. The photographs are
+// loading="lazy" and are never fetched until someone opens an amount picker, so
+// they would otherwise be missing on a device that installed the app and went
+// offline. The icons are fetched by the OS, not the page. And the shell is
+// listed because a cold start with nothing cached has to render something.
+//
+// Relative paths, because the app is served from a project subpath on Pages.
+// ---------------------------------------------------------------------------
+
 const PRECACHE = [
+  // The shell. js/app.js is the one module named here, as the entry point that
+  // pulls in all the others.
   './',
   'index.html',
   'manifest.json',
   'css/app.css',
-
   'js/app.js',
-  'js/api.js',
-  'js/api.mock.js',
-  'js/api.remote.js',
-  'js/config.js',
-  'js/errors.js',
-  'js/format.js',
-  'js/identity.js',
-  'js/imageSizes.js',
-  'js/queue.js',
-  'js/records.js',
-  'js/router.js',
-  'js/seed.js',
-  'js/store.js',
-  'js/serviceWorker.js',
-  'js/typeStyle.js',
-  'js/ui/debug.js',
-  'js/ui/fields.js',
-  'js/screens/entryForm.js',
-  'js/screens/history.js',
-  'js/screens/home.js',
-  'js/screens/placeholder.js',
-  'js/screens/saved.js',
 
+  // The calibration photographs, plus the manifest of their true sizes.
   'img/sizes.json',
   'img/food-10.png', 'img/food-50.png', 'img/food-100.png',
   'img/food-200.png', 'img/food-300.png', 'img/food-400.png',

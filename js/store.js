@@ -15,7 +15,9 @@
 import * as api from './api.js';
 import { createQueue } from './queue.js';
 import { STORAGE_KEYS } from './config.js';
-import { countItemSlots, readRecord, frequentItemNames, itemNamesForType } from './records.js';
+import {
+  countItemSlots, readRecord, frequentItemNames, itemNamesForType, normalizeTime
+} from './records.js';
 
 // ---------------------------------------------------------------------------
 // State.
@@ -31,6 +33,9 @@ const state = {
   pending: [],
   lastError: null
 };
+
+// True while a load is in flight, so overlapping triggers collapse into one.
+let loading = false;
 
 const listeners = new Set();
 
@@ -70,7 +75,11 @@ function applyPending(serverRows, pendingItems) {
 
   pendingItems.forEach(function (item) {
     if (item.kind === 'add') {
-      rows.push(item.payload);
+      // A refresh can return a row whose add is still sitting in the queue --
+      // the write landed but onSuccess has not run yet. Pushing again would
+      // show the same meal twice, so only add it when it is not already here.
+      const alreadyThere = rows.some(function (row) { return row.id === item.payload.id; });
+      if (!alreadyThere) rows.push(item.payload);
     } else if (item.kind === 'update') {
       rows = rows.map(function (row) {
         return row.id === item.payload.id ? Object.assign({}, row, item.payload) : row;
@@ -168,6 +177,15 @@ function restoreCachedSchema() {
 }
 
 /**
+ * Rewrites a row's `time` into ISO if someone typed it by hand. Returns the
+ * original object when nothing changed, so an untouched sheet costs no copies.
+ */
+function withNormalizedTime(row) {
+  const normalized = normalizeTime(row.time);
+  return normalized === row.time ? row : Object.assign({}, row, { time: normalized });
+}
+
+/**
  * Fetches everything from the sheet and discovers the schema from its header
  * row. Safe to call again -- a refresh keeps any still-queued writes visible.
  *
@@ -175,6 +193,11 @@ function restoreCachedSchema() {
  * against the cached schema, and catches up when the network returns.
  */
 export async function load() {
+  // Foreground, reconnect and startup can all ask at once. One at a time is
+  // enough, and it keeps us well inside the Apps Script quota.
+  if (loading) return;
+  loading = true;
+
   try {
     const result = await api.list();
 
@@ -187,7 +210,7 @@ export async function load() {
     }
 
     cacheSchema(result.headers);
-    state.serverRows = result.rows;
+    state.serverRows = result.rows.map(withNormalizedTime);
     state.loadError = null;
     state.loaded = true;
     recompute();
@@ -198,6 +221,8 @@ export async function load() {
     state.loaded = true;
     restoreCachedSchema();
     recompute();
+  } finally {
+    loading = false;
   }
 }
 
@@ -210,9 +235,27 @@ export function schemaKnown() {
   return state.slotCount > 0;
 }
 
-/** Begins draining the queue and retrying on reconnect. */
+/**
+ * Begins draining the queue, and starts keeping the read side fresh.
+ *
+ * Nothing pushes from the sheet, so this device's copy goes stale the moment
+ * the other phone writes. We re-read at the two moments it matters: when the
+ * app is brought back into view, and when the device reconnects.
+ *
+ * Deliberately not a timer. A 60s poll from three devices is roughly 4300 calls
+ * a day, and at one to three seconds each that alone would approach the Apps
+ * Script daily runtime limit -- so the app would break in the evening, every
+ * day, for no benefit. Two phones open side by side still will not see each
+ * other live; switching away and back is the fix, and that is a fair trade.
+ */
 export function start() {
   queue.start();
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) load();
+  });
+
+  window.addEventListener('online', function () { load(); });
 }
 
 // ---------------------------------------------------------------------------
@@ -260,7 +303,7 @@ export function entryById(id) {
   return row ? readRecord(row, state.slotCount) : null;
 }
 
-/** The four most frequent item names for a type, for the one-tap buttons. */
+/** The most used item names for a type lately, for the one-tap chips. */
 export function frequentItems(type, options) {
   return frequentItemNames(state.rows, type, state.slotCount, options);
 }
@@ -273,6 +316,16 @@ export function knownItems(type) {
 /** True when a write is still waiting to reach the sheet. */
 export function hasPendingWrites() {
   return state.pending.length > 0;
+}
+
+/**
+ * Acknowledges a dropped write. The record is already gone from the visible
+ * rows -- this only clears the message, once the user has actually seen it.
+ */
+export function clearLastError() {
+  if (!state.lastError) return;
+  state.lastError = null;
+  notify();
 }
 
 /** Debug only: throw away everything queued, abandoning those writes. */

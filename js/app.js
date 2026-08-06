@@ -117,8 +117,24 @@ Object.assign(routes, {
 // Sync bar. The only place the app admits that writing takes time.
 // ---------------------------------------------------------------------------
 
+/** What was lost, in the words of the thing the user was doing at the time. */
+function failureText(kind) {
+  if (kind === 'update') return 'תיקון לא נשמר';
+  if (kind === 'remove') return 'מחיקה לא בוצעה';
+  return 'רישום לא נשמר';
+}
+
 function renderSyncBar(state) {
   syncBar.className = 'sync-bar';
+
+  // A dropped write outranks everything else here. The row has already vanished
+  // from the screen, so without this the meal you just logged would disappear
+  // with no explanation at all.
+  if (state.lastError) {
+    syncBar.classList.add('error');
+    syncBar.textContent = failureText(state.lastError.kind) + ' — הקש לסגירה';
+    return;
+  }
 
   if (state.pendingCount > 0) {
     syncBar.classList.add('pending');
@@ -156,6 +172,10 @@ async function start() {
     renderIdentityChooser(function () { router.render(); });
   });
 
+  // The failure message stays until it is acknowledged, so it cannot be missed
+  // by looking away for a moment.
+  syncBar.addEventListener('click', function () { store.clearLastError(); });
+
   // Redraw the home screen whenever state changes, so the "last logged" lines
   // and the sync bar stay honest. Other screens are left alone -- re-rendering
   // a form under the user would throw away what they were typing.
@@ -170,6 +190,13 @@ async function start() {
     const schemaIsKnown = store.schemaKnown();
     const schemaJustArrived = schemaIsKnown && !schemaWasKnown;
     schemaWasKnown = schemaIsKnown;
+
+    // Nothing here may draw before the router has put up a screen of its own.
+    // On a device's first run the identity chooser is sitting in the outlet
+    // waiting for an answer, and the schema arriving a second or two later
+    // would otherwise paint the home screen straight over it -- leaving
+    // entered_by empty for good.
+    if (router.currentName() === null) return;
 
     if (router.currentName() === 'home' || schemaJustArrived) router.render();
   });

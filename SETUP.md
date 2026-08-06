@@ -1,17 +1,21 @@
-# Setup -- what you need to do before I write code
+# Setup -- standing up a sheet, script and deployment from nothing
 
-Do these in order. Steps 1-3 are the ones I actually need finished; 4-6 can wait
-until there is something to deploy. Everything here is for the **dev** Sheet.
-We repeat 1-4 later for production, which is why the steps are written to be
-repeatable.
+This is a runbook, not a design document. The reasoning behind these choices
+lives in CLAUDE.md; what follows is the click-by-click.
+
+**Status: steps 1-4 and 6 are done for the dev environment.** Its IDs are in
+`ids.txt`. Production has not been created. When it is, repeat 1-4 against a new
+sheet, which is why every step is written to be repeatable.
+
+Names below say `-DEV`. Use `-PROD` when doing this for real.
 
 ---
 
-## 1. Create the dev Google Sheet
+## 1. Create the Sheet
 
 1. New Google Sheet. Name it `food-and-poop-DEV` so it is never confused with the
    real one.
-2. Rename the first tab to `log`. (I will refer to it by name, not position.)
+2. Rename the first tab to `log`. The code refers to it by name, not position.
 3. Paste this as row 1, starting at A1. It is 19 columns, A through S:
 
 ```
@@ -26,6 +30,9 @@ id	time	type	notes	item1	amount1	item2	amount2	item3	amount3	item4	amount4	item5
    Format > Number > Plain text. This is the single most important step on this
    page. If you skip it, Sheets will silently reinterpret ISO strings by locale
    and the timestamps will be quietly wrong.
+
+   `Code.gs` has `setup_formatDateColumns()`, which does the same thing. Run it
+   from the editor if you ever add a date column and forget.
 5. Leave the `amount*` columns as Automatic. They should stay numeric.
 6. Data validation on column C (`type`). First select the range `C2:C` -- that
    means "column C from row 2 to the bottom", the whole column except the header.
@@ -56,6 +63,10 @@ id	time	type	notes	item1	amount1	item2	amount2	item3	amount3	item4	amount4	item5
    to the Sheet, which is what we want -- do not create a standalone script.
 2. Name it `food-and-poop-DEV`.
 3. Project Settings (gear icon) > copy the **Script ID**.
+4. Paste in `server/Code.gs` and `server/appsscript.json`. (To see
+   `appsscript.json` in the editor: Project Settings > Show "appsscript.json"
+   manifest file.) The manifest pins the OAuth scope; see CLAUDE.md for why that
+   matters.
 
 ---
 
@@ -68,26 +79,9 @@ id	time	type	notes	item1	amount1	item2	amount2	item3	amount3	item4	amount4	item5
    - Property: `TOKEN`
    - Value: the string you generated
 3. Save.
-
-3. The client needs the same string. It goes in `config.js` in the repo. Since
-   free GitHub Pages requires a public repo, that token is readable by anyone who
-   views source -- this is accepted, per the auth note in CLAUDE.md.
-
-### What that does and does not expose
-
-The web app runs as you, so it is worth being precise about the blast radius.
-
-It cannot reach your Drive or your Google account. The endpoint exposes exactly
-four operations against one spreadsheet, and there is no way to make it run
-anything else. To keep that true rather than merely likely, `appsscript.json` is
-pinned to the `spreadsheets.currentonly` scope, `Code.gs` uses
-`getActiveSpreadsheet()` and never `DriveApp` or `openById()`, and no endpoint
-ever accepts a spreadsheet ID as a parameter. Any change that would widen that
-scope is a change worth stopping to discuss.
-
-What someone with the URL and token could do: read the log, write junk rows, or
-exhaust the daily Apps Script quota so the app stops working for a day.
-Recoverable, and accepted.
+4. The client needs the same string, in `js/config.js`. The repo is public, so
+   that token is readable by anyone who views source. This is the accepted
+   tradeoff described in CLAUDE.md.
 
 ---
 
@@ -97,14 +91,22 @@ Recoverable, and accepted.
 2. Type: **Web app**.
 3. Execute as: **Me**.
 4. Who has access: **Anyone**. Not "Anyone with a Google account" -- that one
-   will break the client.
+   will break the client with a CORS error.
 5. Deploy. You will be asked to authorize scopes; the "unverified app" warning is
    expected for your own script -- click Advanced > Go to (unsafe).
 6. Copy two things: the **web app URL** ending in `/exec`, and the
    **Deployment ID**.
+7. Put the URL and token into `js/config.js`, along with the Sheet URL for the
+   `קובץ` button.
 
-From here on, redeploying is `clasp deploy -i <deploymentId>`, which keeps that
-URL stable. Never use "New deployment" again on this project.
+From here on, redeploying is Deploy > Manage deployments > edit the existing one,
+or `clasp deploy -i <deploymentId>`. Both keep the URL stable. **Never use "New
+deployment" again on this project** -- it issues a new URL.
+
+Before wiring up the client, run `test_environment()` and then `test_roundTrip()`
+from the Apps Script editor. They confirm the token and the `log` tab are
+reachable and that a record survives add, list, update and delete. Doing this
+before the client exists means a failure has only one possible cause.
 
 ---
 
@@ -133,19 +135,17 @@ If you do want clasp:
    clasp login
    ```
 
-3. Clone into a `server/` subfolder, **not** the repo root:
+3. Clone into the `server/` subfolder, **not** the repo root:
 
    ```
-   mkdir server
    cd server
    clasp clone <scriptId>
    ```
 
    This matters. `clasp push` uploads every `.js`, `.gs` and `.html` file beneath
-   its root directory, so cloning into the repo root would mean pushing the
-   client code into the Apps Script project. Keeping the server in `server/` and
-   the client at the repo root keeps the two apart, and keeps the Pages root
-   clean.
+   its root directory, so cloning into the repo root would push the entire client
+   into the Apps Script project. Keeping the server in `server/` and the client
+   at the repo root keeps the two apart, and keeps the Pages root clean.
 
 ---
 
@@ -164,24 +164,31 @@ If you do want clasp:
 
 ---
 
-## What to send me when you are done
+## What to record when you are done
 
-- Sheet ID (dev)
+Into `ids.txt`, and label which environment it is:
+
+- Sheet ID
 - Web app URL ending in `/exec`
 - Deployment ID
 - Script ID
 - GitHub Pages URL
-- The token (it lives in the repo anyway, so chat is no worse)
+- The token
 
 ---
 
 ## Things that commonly go wrong
 
 - **Timestamps come back mangled.** Column B, R or S was not set to plain text
-  before data was written. Fix the format, then rewrite the affected rows.
+  before data was written. Fix the format, run `setup_formatDateColumns()`, then
+  rewrite the affected rows.
 - **The client gets a CORS error.** Almost always "Who has access" is set to
   "Anyone with a Google account" rather than "Anyone".
+- **Every request comes back "Bad or missing token".** The `TOKEN` script
+  property and `js/config.js` have drifted apart. `test_environment()` prints the
+  first eight characters of the property.
 - **Edits do not appear in the app.** Either the service worker cached an old
-  build, or `clasp push` happened without `clasp deploy -i`.
+  build, or `clasp push` happened without `clasp deploy -i`. In development the
+  worker unregisters itself, so on a phone try closing every tab first.
 - **Hebrew arrives as mojibake.** Should not happen with `text/plain` plus
   `JSON.parse`, but if it does, tell me rather than adding encoding hacks.

@@ -213,7 +213,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 .sync-bar.pending { color: #92400e; background: #fef7e6; }
-.sync-bar.error { color: #b91c1c; background: #fee2e2; }
+
+/* Tappable, because a dropped write has to be acknowledged to be cleared. */
+.sync-bar.error { color: #b91c1c; background: #fee2e2; cursor: pointer; }
 
 /* ---- Placeholder --------------------------------------------------------- */
 

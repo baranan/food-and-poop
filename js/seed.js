@@ -19,7 +19,7 @@ export const MOCK_HEADERS = [
 ];
 
 // Vocabularies. Foods are weighted by position -- the earlier ones recur more
-// often, so the "four most frequent" buttons have something stable to find.
+// often, so the frequent-item chips have something stable to find.
 const FOODS = [
   'לחם', 'בננה', 'יוגורט', 'אורז',
   'עוף', 'פסטה', 'גבינה לבנה', 'ביצה',
